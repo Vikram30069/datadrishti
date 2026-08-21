@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #070e1c;
+  color: #f1f5f9;
+  overflow-x: hidden;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b1528;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e3a8a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00baf2;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(17, 34, 64, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-glow {
+  background: rgba(17, 34, 64, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 186, 242, 0.3);
+  box-shadow: 0 0 25px rgba(0, 186, 242, 0.15);
+}
+
+/* Paytm gradient header */
+.paytm-header-gradient {
+  background: linear-gradient(135deg, #00BAF2 0%, #0F4A8A 100%);
+}
+
+.paytm-btn-gradient {
+  background: linear-gradient(135deg, #00BAF2 0%, #0099C7 100%);
+  transition: all 0.2s ease;
+}
+
+.paytm-btn-gradient:hover {
+  background: linear-gradient(135deg, #0099C7 0%, #02779E 100%);
+  transform: translateY(-1px);
+}
