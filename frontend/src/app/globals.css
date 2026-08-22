@@ -5,59 +5,93 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #070e1c;
-  color: #f1f5f9;
+  background-color: #f1f5f9;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(0, 186, 242, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(0, 46, 110, 0.06) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(241, 245, 249, 1) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: #0f172a;
   overflow-x: hidden;
 }
 
-/* Custom subtle scrollbar */
+/* Custom subtle light scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b1528;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e3a8a;
-  border-radius: 3px;
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00baf2;
+  background: #94a3b8;
 }
 
-/* Glassmorphism utility */
+/* Light Card Panels */
+.light-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+}
+
+.light-panel-elevated {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.03);
+}
+
 .glass-panel {
-  background: rgba(17, 34, 64, 0.75);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
 }
 
 .glass-panel-glow {
-  background: rgba(17, 34, 64, 0.85);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 186, 242, 0.3);
-  box-shadow: 0 0 25px rgba(0, 186, 242, 0.15);
+  border: 1px solid rgba(0, 186, 242, 0.4);
+  box-shadow: 0 10px 30px -4px rgba(0, 186, 242, 0.12);
 }
 
-/* Paytm gradient header */
+/* Paytm Gradient Utilities */
 .paytm-header-gradient {
-  background: linear-gradient(135deg, #00BAF2 0%, #0F4A8A 100%);
+  background: linear-gradient(135deg, #00BAF2 0%, #002E6E 100%);
 }
 
 .paytm-btn-gradient {
-  background: linear-gradient(135deg, #00BAF2 0%, #0099C7 100%);
+  background: linear-gradient(135deg, #00BAF2 0%, #002E6E 100%);
   transition: all 0.2s ease;
 }
 
 .paytm-btn-gradient:hover {
-  background: linear-gradient(135deg, #0099C7 0%, #02779E 100%);
+  background: linear-gradient(135deg, #0099C7 0%, #002252 100%);
   transform: translateY(-1px);
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

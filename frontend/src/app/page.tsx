@@ -133,9 +133,10 @@ export default function Home() {
       const evalRes = await triggerScenario(scenarioId);
       setEvaluation(evalRes);
 
+      const nowTs = Date.now();
       if (scenarioId === "scenario_a") {
         setCurrentTransaction({
-          transaction_id: "TXN_DEMO_A",
+          transaction_id: `TXN_DEMO_A_${nowTs}`,
           user_id: "U102",
           recipient_id: "R202",
           recipient_name: "Nature Basket Groceries",
@@ -150,7 +151,7 @@ export default function Home() {
         });
       } else if (scenarioId === "scenario_b") {
         setCurrentTransaction({
-          transaction_id: "TXN_DEMO_B",
+          transaction_id: `TXN_DEMO_B_${nowTs}`,
           user_id: "U102",
           recipient_id: "R201",
           recipient_name: "Suresh Nair (Landlord)",
@@ -165,7 +166,7 @@ export default function Home() {
         });
       } else if (scenarioId === "scenario_c") {
         setCurrentTransaction({
-          transaction_id: "TXN_DEMO_C",
+          transaction_id: `TXN_DEMO_C_${nowTs}`,
           user_id: "U102",
           recipient_id: "R991",
           recipient_name: "Amit Kumar",
@@ -180,7 +181,7 @@ export default function Home() {
         });
       } else if (scenarioId === "scenario_d") {
         setCurrentTransaction({
-          transaction_id: "TXN_DEMO_D",
+          transaction_id: `TXN_DEMO_D_${nowTs}`,
           user_id: "U102",
           recipient_id: "R999",
           recipient_name: "QuickCrypto Pay",
@@ -209,7 +210,16 @@ export default function Home() {
   const handleProceedToPay = async () => {
     setIsLoading(true);
     try {
-      const evalRes = await evaluateTransaction(currentTransaction);
+      // Ensure unique transaction_id for each live payment attempt
+      const activeTx = {
+        ...currentTransaction,
+        transaction_id: currentTransaction.transaction_id.includes("_") 
+          ? currentTransaction.transaction_id 
+          : `${currentTransaction.transaction_id}_${Date.now()}`
+      };
+      setCurrentTransaction(activeTx);
+      const evalRes = await evaluateTransaction(activeTx);
+
       setEvaluation(evalRes);
 
       if (evalRes.policy_action === "ALLOW") {
@@ -265,23 +275,23 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen p-3 md:p-6 flex flex-col justify-between max-w-7xl mx-auto space-y-4 font-sans">
+    <main className="min-h-screen p-3 md:p-6 flex flex-col justify-between max-w-7xl mx-auto space-y-4 font-sans text-slate-900">
       {/* Top Navbar */}
-      <header className="flex flex-col md:flex-row items-start md:items-center justify-between pb-3 border-b border-slate-800 gap-3">
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between pb-3 border-b border-slate-200 gap-3 bg-white/70 backdrop-blur-md p-4 rounded-2xl border shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl paytm-header-gradient flex items-center justify-center text-white shadow-lg font-black text-xl border border-cyan-400/40">
+          <div className="w-10 h-10 rounded-2xl paytm-header-gradient flex items-center justify-center text-white shadow-md font-black text-xl border border-cyan-300">
             ₹
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-lg md:text-xl text-white tracking-tight">
-                Paytm <span className="text-cyan-400">IntentGuard</span>
+              <h1 className="font-extrabold text-lg md:text-xl text-[#002E6E] tracking-tight">
+                Paytm <span className="text-[#00BAF2]">IntentGuard</span>
               </h1>
-              <span className="text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40 px-2.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold bg-blue-50 text-[#002E6E] border border-blue-200 px-2.5 py-0.5 rounded-full">
                 Native Paytm Layer Prototype
               </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500 font-medium">
               Contextual Payment Security • 100 Personas & 10,000+ Deterministic Synthetic Stream
             </p>
           </div>
@@ -290,13 +300,13 @@ export default function Home() {
         {/* View Mode & Right Panel Switcher */}
         <div className="flex items-center gap-2 self-end md:self-auto">
           {/* Studio Tab Switcher */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-1 flex items-center gap-1 text-xs">
+          <div className="bg-slate-100 border border-slate-200 rounded-xl p-1 flex items-center gap-1 text-xs">
             <button
               onClick={() => setRightTab("studio")}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition ${
                 rightTab === "studio"
-                  ? "bg-cyan-500 text-slate-950 font-bold shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#002E6E] text-white font-bold shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Database className="w-3.5 h-3.5" />
@@ -306,8 +316,8 @@ export default function Home() {
               onClick={() => setRightTab("telemetry")}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition ${
                 rightTab === "telemetry"
-                  ? "bg-cyan-500 text-slate-950 font-bold shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#002E6E] text-white font-bold shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
@@ -316,13 +326,13 @@ export default function Home() {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-1 flex items-center gap-1 text-xs">
+          <div className="bg-slate-100 border border-slate-200 rounded-xl p-1 flex items-center gap-1 text-xs">
             <button
               onClick={() => setViewMode("phone-only")}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition ${
                 viewMode === "phone-only"
-                  ? "bg-[#00BAF2] text-slate-950 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#00BAF2] text-white font-bold shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
@@ -332,8 +342,8 @@ export default function Home() {
               onClick={() => setViewMode("split")}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition ${
                 viewMode === "split"
-                  ? "bg-[#00BAF2] text-slate-950 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#00BAF2] text-white font-bold shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -344,7 +354,7 @@ export default function Home() {
           <button
             onClick={handleResetDemo}
             disabled={isLoading}
-            className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+            className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition"
           >
             Reset
           </button>
@@ -352,9 +362,9 @@ export default function Home() {
       </header>
 
       {/* Quick Scenario Preset Selector Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 shrink-0 px-2">
-          <Sparkles className="w-4 h-4 text-cyan-400" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-2.5 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shadow-xs">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 shrink-0 px-2">
+          <Sparkles className="w-4 h-4 text-[#00BAF2]" />
           <span>Quick Scenarios:</span>
         </div>
 
@@ -363,38 +373,57 @@ export default function Home() {
             <button
               key={sc.id}
               onClick={() => handleSelectScenario(sc.id)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition flex items-center gap-1.5 shrink-0 ${
+              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition flex items-center gap-1.5 shrink-0 shadow-xs ${
                 activeScenarioId === sc.id
-                  ? "bg-[#00BAF2] text-slate-950 border-[#00BAF2] font-bold shadow-md"
-                  : "bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800"
+                  ? "bg-[#002E6E] text-white border-[#002E6E] font-bold shadow-sm"
+                  : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
               }`}
             >
               <span>{sc.title.split(":")[0]}: <strong>{sc.amount}</strong></span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                sc.action === "ALLOW" ? "bg-emerald-950 text-emerald-300" : sc.action === "CONFIRM" ? "bg-amber-950 text-amber-300" : "bg-rose-950 text-rose-300"
+                sc.action === "ALLOW"
+                  ? (activeScenarioId === sc.id ? "bg-emerald-400/30 text-emerald-200" : "bg-emerald-100 text-emerald-800")
+                  : sc.action === "CONFIRM"
+                  ? (activeScenarioId === sc.id ? "bg-amber-400/30 text-amber-200" : "bg-amber-100 text-amber-900")
+                  : (activeScenarioId === sc.id ? "bg-rose-400/30 text-rose-200" : "bg-rose-100 text-rose-800")
               }`}>
                 {sc.action}
               </span>
             </button>
           ))}
+
+          {/* Quick Twilio Out-of-Band Call & WhatsApp Trigger */}
+          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 shrink-0">
+            <button
+              onClick={() => {
+                setRightTab("telemetry");
+              }}
+              className="text-xs font-bold px-2.5 py-1.5 rounded-xl bg-slate-900 text-emerald-400 hover:bg-slate-800 border border-slate-700 transition flex items-center gap-1.5 shadow-xs"
+              title="Open Twilio Out-of-Band Calling & WhatsApp Panel"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>📞 Live Twilio (+91 63045 89007)</span>
+            </button>
+          </div>
         </div>
       </div>
+
 
       {/* Main Layout */}
       <div className={`grid grid-cols-1 ${viewMode === "split" ? "lg:grid-cols-12" : "max-w-md mx-auto w-full"} gap-6 items-start`}>
         {/* Mobile Phone Simulator Container */}
         <div className={`${viewMode === "split" ? "lg:col-span-5" : "w-full"} flex flex-col items-center`}>
-          <div className="w-full max-w-[390px] flex items-center justify-between mb-1.5 text-xs text-slate-400 px-2">
-            <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="w-full max-w-[390px] flex items-center justify-between mb-1.5 text-xs text-slate-500 px-2 font-medium">
+            <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Paytm UPI Native Interface
             </span>
-            <span className="text-[10px] text-cyan-400 font-mono">
+            <span className="text-[10px] text-[#002E6E] font-mono font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
               State: {mobileState}
             </span>
           </div>
 
-          <MobileFrame timeString="1:14" callDuration="1:11:36">
+          <MobileFrame timeString="9:41">
             {/* Screen 1: Payment Entry (Matching Latest Screenshot) */}
             {mobileState === "ENTRY" && (
               <ScreenPaymentEntry
@@ -521,7 +550,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="pt-4 border-t border-slate-800 text-center text-xs text-slate-500">
+      <footer className="pt-4 border-t border-slate-200 text-center text-xs text-slate-500 font-medium">
         Paytm IntentGuard Concept Prototype • Deterministic Synthetic Engine with 100 Personas & 10,000+ Transactions
       </footer>
     </main>

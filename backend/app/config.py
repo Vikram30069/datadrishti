@@ -2,16 +2,20 @@
 Application Configuration for IntentGuard
 """
 import os
-from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    model_config = ConfigDict(case_sensitive=True)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=True
+    )
 
     PROJECT_NAME: str = "Paytm IntentGuard Concept Prototype"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = True
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./intentguard.db")
+    DATABASE_URL: str = "sqlite:///./intentguard.db"
     SIMULATION_DISCLAIMER: str = (
         "Simulated hackathon experience. No real payments, UPI PINs, OTPs, or bank credentials are used."
     )
@@ -34,4 +38,19 @@ class Settings(BaseSettings):
     THRESHOLD_MEDIUM_MAX: int = 55
     THRESHOLD_HIGH_MAX: int = 79
 
+    # Twilio Prototype Escalation Settings
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_FROM_PHONE: str = "+15005550006"
+    TWILIO_WHATSAPP_FROM: str = "whatsapp:+14155238886"
+    DEMO_USER_PHONE_NUMBER: str = "+916304589007"
+    PUBLIC_WEBHOOK_URL: str = ""
+
+    # Groq Verification Response Classifier Settings
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+
 settings = Settings()
+
+
+

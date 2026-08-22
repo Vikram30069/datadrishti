@@ -17,9 +17,17 @@ from backend.app.database.connection import get_db
 from backend.app.schemas.profile import UserProfileSchema
 from backend.app.schemas.transaction import TransactionCreateSchema, IntentExtractRequestSchema
 from backend.app.schemas.evaluation import RiskEvaluationResponse, IntentExtractResponse
-from backend.app.schemas.telemetry import FeedbackCreateSchema, DashboardMetricsSchema
+from backend.app.schemas.telemetry import (
+    FeedbackCreateSchema,
+    DashboardMetricsSchema,
+    EscalationRequestSchema,
+    EscalationStatusSchema,
+    EscalationSimulateSchema,
+    EscalationCompleteSchema
+)
 from backend.app.services.profile_service import ProfileService
 from backend.app.services.feature_service import FeatureService
+from backend.app.services.twilio_service import TwilioEscalationService
 from backend.app.risk.anomaly_model import AnomalyModelService
 from backend.app.risk.engine import RiskEngine
 from backend.app.policy.friction_engine import FrictionEngine
@@ -135,6 +143,22 @@ def evaluate_transaction(
         evaluated_at=now_dt
     )
 
+    # If ESCALATE, initialize fresh verification session
+    if policy_action == "ESCALATE":
+        from backend.app.services.verification_service import VERIFICATION_SESSIONS, VerificationResponseService
+        txn_id = tx_in.transaction_id or f"TXN_{event_id}"
+        # Always initialize fresh session
+        if txn_id in VERIFICATION_SESSIONS:
+            del VERIFICATION_SESSIONS[txn_id]
+        if "latest" in VERIFICATION_SESSIONS:
+            del VERIFICATION_SESSIONS["latest"]
+        VerificationResponseService.get_or_create_session(
+            transaction_id=txn_id,
+            amount=tx_in.amount,
+            recipient_name=rec_name,
+            user_id=tx_in.user_id
+        )
+
     return RiskEvaluationResponse(
         event_id=event_id,
         user_id=tx_in.user_id,
@@ -153,6 +177,7 @@ def evaluate_transaction(
         is_simulation=True,
         disclaimer=settings.SIMULATION_DISCLAIMER
     )
+
 
 @router.post("/intent/extract", response_model=IntentExtractResponse)
 def extract_intent(intent_req: IntentExtractRequestSchema):
@@ -344,3 +369,145 @@ def reset_simulation(db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "success", "message": "Simulation state reset successfully to baseline fixtures."}
+
+@router.get("/escalation/status", response_model=EscalationStatusSchema)
+def get_escalation_status():
+    """
+    Returns Twilio service readiness status (live credentials vs simulated mode).
+    """
+    return {
+        "is_live_configured": TwilioEscalationService.is_live_configured(),
+        "account_sid_present": bool(settings.TWILIO_ACCOUNT_SID and not settings.TWILIO_ACCOUNT_SID.startswith("AC_DEMO")),
+        "from_phone": settings.TWILIO_FROM_PHONE,
+        "whatsapp_from": settings.TWILIO_WHATSAPP_FROM,
+        "demo_user_phone": settings.DEMO_USER_PHONE_NUMBER,
+        "supported_channels": ["whatsapp", "voice", "sms"]
+    }
+
+@router.post("/escalation/trigger")
+def trigger_escalation_alert(req: EscalationRequestSchema):
+    """
+    Dispatches an out-of-band escalation via WhatsApp, Automated Voice Call (TwiML TTS), or SMS.
+    Uses live Twilio API if credentials are configured, or high-fidelity simulation in demo mode.
+    """
+    res = TwilioEscalationService.trigger_escalation(
+        channel=req.channel,
+        recipient_name=req.recipient_name,
+        amount=req.amount,
+        to_phone=req.to_phone,
+        user_name=req.user_name or "Vikram Verma",
+        transaction_id=req.transaction_id or "TXN_DEMO"
+    )
+    return res
+
+@router.get("/escalation/session")
+def get_escalation_session(transaction_id: Optional[str] = None):
+    """
+    Returns the authoritative escalation response state (PENDING_VERIFICATION, VERIFYING, VERIFIED, REJECTED, CANCELLED, COMPLETED)
+    for real-time UI synchronization.
+    """
+    return TwilioEscalationService.get_session(transaction_id)
+
+@router.post("/escalation/simulate-response")
+def simulate_escalation_response(payload: EscalationSimulateSchema):
+    """
+    Simulates a live response from the user (e.g., user said YES/CONFIRM or NO/BLOCK)
+    through the authoritative VerificationResponseService and Groq natural language classifier.
+    """
+    txn_id = payload.transaction_id or "TXN_DEMO_D"
+    
+    # Determine input text
+    if payload.raw_input:
+        input_text = payload.raw_input
+    elif payload.action and payload.action.upper() in ["YES", "VERIFIED", "APPROVED", "CONFIRMED", "PROCEED"]:
+        input_text = "Yes, I initiated this payment."
+    elif payload.action and payload.action.upper() in ["NO", "CANCELLED", "REJECTED", "BLOCK"]:
+        input_text = "No, I did not initiate this payment."
+    elif payload.action and payload.action.upper() in ["UNCLEAR", "MAYBE", "AMBIGUOUS"]:
+        input_text = "Maybe, I am not sure."
+    else:
+        input_text = payload.action or "Yes, I initiated this payment."
+
+    from backend.app.services.verification_service import VerificationResponseService
+    result = VerificationResponseService.process_verification_response(
+        transaction_id=txn_id,
+        channel=payload.channel or "DEMO",
+        response_text=input_text
+    )
+    return {
+        "status": "success",
+        "session": result.get("session"),
+        "decision": result.get("decision"),
+        "confidence": result.get("confidence"),
+        "reason": result.get("reason"),
+        "action_taken": result.get("action_taken")
+    }
+
+
+@router.post("/escalation/complete")
+def complete_verified_transaction(payload: EscalationCompleteSchema):
+    """
+    Finalizes and executes the payment ONLY if backend state is VERIFIED.
+    Returns 400 if unverified, rejected, or invalid.
+    """
+    try:
+        session = TwilioEscalationService.complete_transaction(payload.transaction_id)
+        # Log feedback update to profile
+        try:
+            db_session = next(get_db())
+            ProfileService.record_feedback(
+                db=db_session,
+                user_id="U102",
+                transaction_id=payload.transaction_id,
+                is_intentional=True
+            )
+        except Exception:
+            pass
+        return {
+            "status": "success",
+            "message": "Payment authorized and completed successfully.",
+            "session": session
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/escalation/voice-webhook")
+def twilio_voice_webhook(
+    SpeechResult: Optional[str] = Query(None),
+    Digits: Optional[str] = Query(None),
+    transaction_id: Optional[str] = Query("TXN_DEMO_D")
+):
+    """
+    Twilio Voice Gather Webhook. Receives transcribed speech or keypress digits from the phone call
+    and returns appropriate TwiML while updating authoritative state machine.
+    """
+    from fastapi.responses import Response
+    result = TwilioEscalationService.process_voice_response(
+        speech_result=SpeechResult,
+        digits=Digits,
+        transaction_id=transaction_id or "TXN_DEMO_D"
+    )
+    return Response(content=result["twiml"], media_type="application/xml")
+
+@router.post("/escalation/whatsapp-webhook")
+def twilio_whatsapp_webhook(
+    Body: Optional[str] = Query(""),
+    From: Optional[str] = Query(""),
+    transaction_id: Optional[str] = Query("TXN_DEMO_D")
+):
+    """
+    Twilio WhatsApp Incoming Message Webhook.
+    Parses 'YES' / 'NO' and updates authoritative state machine.
+    """
+    from fastapi.responses import Response
+    result = TwilioEscalationService.process_whatsapp_response(
+        body=Body or "",
+        from_phone=From or "",
+        transaction_id=transaction_id or "TXN_DEMO_D"
+    )
+    twiml_msg = f"<Response><Message>{result['reply_message']}</Message></Response>"
+    return Response(content=twiml_msg, media_type="application/xml")
+
+
+

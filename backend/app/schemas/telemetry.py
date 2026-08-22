@@ -45,3 +45,36 @@ class ScenarioTriggerRequest(BaseModel):
     scenario_id: str # scenario_a, scenario_b, scenario_c, scenario_d
     custom_amount: Optional[float] = None
     custom_recipient_name: Optional[str] = None
+
+
+class EscalationRequestSchema(BaseModel):
+    channel: str = "whatsapp" # "whatsapp", "voice", "sms"
+    recipient_name: str
+    amount: float
+    to_phone: Optional[str] = None
+    user_name: Optional[str] = "Vikram Verma"
+    transaction_id: Optional[str] = "TXN_DEMO"
+
+
+class EscalationStatusSchema(BaseModel):
+    is_live_configured: bool
+    account_sid_present: bool
+    from_phone: str
+    whatsapp_from: str
+    demo_user_phone: str
+    supported_channels: List[str]
+
+
+class EscalationSimulateSchema(BaseModel):
+    transaction_id: Optional[str] = "TXN_DEMO_D"
+    action: str = "VERIFIED" # "VERIFIED" or "CANCELLED" / "REJECTED"
+    channel: str = "voice" # "voice" or "whatsapp"
+    raw_input: Optional[str] = None
+
+
+class EscalationCompleteSchema(BaseModel):
+    transaction_id: str
+    amount: Optional[float] = None
+    recipient_name: Optional[str] = None
+
+

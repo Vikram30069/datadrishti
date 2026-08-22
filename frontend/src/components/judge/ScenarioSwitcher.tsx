@@ -65,15 +65,15 @@ export const ScenarioSwitcher: React.FC<ScenarioSwitcherProps> = ({
   isLoading = false,
 }) => {
   return (
-    <div className="glass-panel rounded-2xl p-4 border border-slate-800 shadow-xl space-y-4">
+    <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4 font-sans text-slate-900">
       {/* Top Header & Reset */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-extrabold text-sm text-slate-100 flex items-center gap-2">
-            <Play className="w-4 h-4 text-cyan-400 fill-cyan-400" />
+          <h3 className="font-extrabold text-sm text-[#002E6E] flex items-center gap-2">
+            <Play className="w-4 h-4 text-[#00BAF2] fill-[#00BAF2]" />
             <span>Judge Demo Scenarios</span>
           </h3>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-500 font-medium">
             Run the 4 canonical test flows in &lt; 90 seconds
           </p>
         </div>
@@ -81,7 +81,7 @@ export const ScenarioSwitcher: React.FC<ScenarioSwitcherProps> = ({
         <button
           onClick={onResetDemo}
           disabled={isLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 transition shadow-xs"
         >
           <RotateCcw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
           <span>Reset Demo</span>
@@ -98,32 +98,32 @@ export const ScenarioSwitcher: React.FC<ScenarioSwitcherProps> = ({
             <button
               key={sc.id}
               onClick={() => onSelectScenario(sc.id)}
-              className={`p-3 rounded-xl text-left border transition relative overflow-hidden flex flex-col justify-between ${
+              className={`p-3.5 rounded-2xl text-left border transition relative overflow-hidden flex flex-col justify-between shadow-2xs ${
                 isSelected
-                  ? "bg-slate-900 border-cyan-400 shadow-[0_0_15px_rgba(0,186,242,0.2)]"
-                  : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-900/80"
+                  ? "bg-blue-50/70 border-[#002E6E] shadow-sm"
+                  : "bg-slate-50/60 border-slate-200 hover:bg-slate-100/70 hover:border-slate-300"
               }`}
             >
               <div className="flex items-start justify-between">
-                <span className="text-xs font-bold text-slate-200">
+                <span className="text-xs font-extrabold text-slate-900">
                   {sc.title}
                 </span>
                 <span
                   className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
                     sc.color === "emerald"
-                      ? "bg-emerald-950 text-emerald-300 border-emerald-500/40"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
                       : sc.color === "amber"
-                      ? "bg-amber-950 text-amber-300 border-amber-500/40"
-                      : "bg-rose-950 text-rose-300 border-rose-500/40"
+                      ? "bg-amber-100 text-amber-900 border-amber-300"
+                      : "bg-rose-100 text-rose-800 border-rose-300"
                   }`}
                 >
                   {sc.action}
                 </span>
               </div>
 
-              <div className="mt-2 flex items-center justify-between text-xs">
-                <span className="font-extrabold text-white text-sm">{sc.amount}</span>
-                <span className="text-[10px] text-slate-400 truncate max-w-[170px]">
+              <div className="mt-2.5 flex items-center justify-between text-xs">
+                <span className="font-extrabold text-[#002E6E] text-base">{sc.amount}</span>
+                <span className="text-[10px] text-slate-500 font-medium truncate max-w-[170px]">
                   {sc.context}
                 </span>
               </div>
