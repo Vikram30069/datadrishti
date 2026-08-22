@@ -473,7 +473,7 @@ def complete_verified_transaction(payload: EscalationCompleteSchema):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/escalation/voice-webhook")
+@router.api_route("/escalation/voice-webhook", methods=["GET", "POST"])
 async def twilio_voice_webhook(
     request: Request,
     transaction_id: Optional[str] = Query(None)
@@ -503,7 +503,7 @@ async def twilio_voice_webhook(
     )
     return Response(content=result["twiml"], media_type="application/xml")
 
-@router.post("/escalation/whatsapp-webhook")
+@router.api_route("/escalation/whatsapp-webhook", methods=["GET", "POST"])
 async def twilio_whatsapp_webhook(
     request: Request,
     transaction_id: Optional[str] = Query(None)

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Application Configuration for IntentGuard
 """
 import os
@@ -53,6 +53,6 @@ class Settings(BaseSettings):
 
     # Groq Verification Response Classifier Settings
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "qwen/qwen3.6-27b"
 
 settings = Settings()

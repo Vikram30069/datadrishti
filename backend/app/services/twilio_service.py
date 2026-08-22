@@ -6,6 +6,7 @@ PENDING_VERIFICATION -> VERIFYING -> VERIFIED / REJECTED / CANCELLED -> COMPLETE
 """
 import os
 import uuid
+import html
 import datetime
 from typing import Dict, Any, Optional
 from backend.app.config import settings
@@ -42,7 +43,6 @@ class TwilioEscalationService:
 
     @classmethod
     def get_or_create_session(
-
         cls,
         transaction_id: Optional[str] = None,
         amount: float = 75000.0,
@@ -61,7 +61,6 @@ class TwilioEscalationService:
     def get_session(cls, transaction_id: Optional[str] = None) -> Dict[str, Any]:
         """Delegates to VerificationResponseService."""
         return VerificationResponseService.get_session(transaction_id)
-
 
     @classmethod
     def update_session(
@@ -121,7 +120,6 @@ class TwilioEscalationService:
         Parses speech transcription or pressed digits from Twilio automated voice call
         using unified Groq verification classifier.
         """
-        # Map keypad digits: 1 -> "No, cancel it", 2 -> "Yes, authorize it"
         digit_str = str(digits or "").strip()
         if digit_str == "1":
             user_input = "No, cancel the payment."
@@ -141,26 +139,30 @@ class TwilioEscalationService:
 
         if decision == "YES":
             twiml_reply = (
-                "<Response>"
-                "<Say voice='alice' language='en-IN'>Thank you. Your identity has been verified. You may now proceed on your screen.</Say>"
-                "</Response>"
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<Response>\n'
+                '  <Say language="en-IN">Thank you. Your identity has been verified. You may now proceed on your screen.</Say>\n'
+                '</Response>'
             )
         elif decision == "NO":
             twiml_reply = (
-                "<Response>"
-                "<Say voice='alice' language='en-IN'>Payment cancelled immediately for your protection. Your account is secure.</Say>"
-                "</Response>"
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<Response>\n'
+                '  <Say language="en-IN">Payment cancelled immediately for your protection. Your account is secure.</Say>\n'
+                '</Response>'
             )
         else:
             # Unclear speech - keep PENDING_VERIFICATION and retry
-            action_attr = f" action='{settings.PUBLIC_WEBHOOK_URL.rstrip('/')}/api/v1/escalation/voice-webhook?transaction_id={transaction_id}'" if settings.PUBLIC_WEBHOOK_URL else ""
+            action_attr = f' action="{settings.PUBLIC_WEBHOOK_URL.rstrip("/")}/api/v1/escalation/voice-webhook?transaction_id={transaction_id}" method="POST"' if settings.PUBLIC_WEBHOOK_URL else ""
             twiml_reply = (
-                f"<Response>"
-                f"<Say voice='alice' language='en-IN'>We could not clearly verify your response. Please say YES, I initiated this payment, or say NO, I did not initiate this payment.</Say>"
-                f"<Gather input='speech dtmf' timeout='5' speechTimeout='auto'{action_attr} hints='yes, no, block, cancel, authorize, 1, 2' language='en-IN'>"
-                f"<Say voice='alice' language='en-IN'>Please answer YES or NO.</Say>"
-                f"</Gather>"
-                f"</Response>"
+                f'<?xml version="1.0" encoding="UTF-8"?>\n'
+                f'<Response>\n'
+                f'  <Say language="en-IN">We could not clearly verify your response. Please press 1 to cancel the payment, or press 2 to verify and approve it.</Say>\n'
+                f'  <Gather input="speech dtmf" timeout="6" speechTimeout="auto"{action_attr} hints="yes, no, cancel, approve, 1, 2" language="en-IN">\n'
+                f'    <Say language="en-IN">Press 1 to cancel. Press 2 to approve.</Say>\n'
+                f'  </Gather>\n'
+                f'  <Say language="en-IN">No input received. The payment remains paused. Stay safe with Paytm IntentGuard.</Say>\n'
+                f'</Response>'
             )
 
         return {
@@ -196,7 +198,7 @@ class TwilioEscalationService:
         elif decision == "NO":
             reply_msg = "🛑 *Payment Cancelled*\nIntentGuard received a NO response. The payment has been cancelled for your protection. Zero funds debited."
         else:
-            reply_msg = "❓ *Paytm IntentGuard*: We couldn't clearly verify your response.\n\nPlease reply:\n• *YES*, to confirm this payment\n• *NO*, to cancel and protect your account."
+            reply_msg = "⚠️ *Paytm IntentGuard*: We couldn't clearly verify your response.\n\nPlease reply:\n• *YES*, to confirm this payment\n• *NO*, to cancel and protect your account."
 
         return {
             "session": session,
@@ -210,8 +212,7 @@ class TwilioEscalationService:
     @classmethod
     def trigger_escalation(
         cls,
-        channel: str,  # "whatsapp", "voice", "sms"
-
+        channel: str,
         recipient_name: str,
         amount: float,
         to_phone: Optional[str] = None,
@@ -219,31 +220,27 @@ class TwilioEscalationService:
         transaction_id: str = "TXN_DEMO_D"
     ) -> Dict[str, Any]:
         """
-        Dispatches an out-of-band escalation via WhatsApp, Automated Voice Call, or SMS.
-        Authoritatively transitions state to VERIFYING.
+        Dispatches real-time live out-of-band escalation via Twilio
+        or produces realistic simulation payload if Twilio is unconfigured.
         """
         target_phone = to_phone or settings.DEMO_USER_PHONE_NUMBER
-        now_str = datetime.datetime.now().strftime("%I:%M %p")
+        safe_recipient = html.escape(str(recipient_name))
+        safe_user = html.escape(str(user_name))
 
-        # Initialize or update session state as VERIFYING
-        cls.update_session(
-            transaction_id=transaction_id,
-            status="VERIFYING",
-            method=channel.upper(),
-            raw_input=f"Dispatched {channel} alert",
-            channel=channel
-        )
+        # Ensure session is created and updated to VERIFYING state
+        cls.get_or_create_session(transaction_id=transaction_id, amount=amount, recipient_name=recipient_name, channel=channel)
+        cls.update_session(transaction_id=transaction_id, status="VERIFYING", channel=channel)
 
+        # 1. WHATSAPP ALERT
         if channel.lower() == "whatsapp":
             body = (
-                f"PAYTM INTENTGUARD 🛡️\n\n"
-                f"A ₹{int(amount):,} payment to {recipient_name}\n"
-                f"requires additional verification.\n\n"
-                f"The payment was initiated at {now_str}\n"
+                f"🛡️ *Paytm IntentGuard Security Alert*\n\n"
+                f"Hello {user_name},\n"
+                f"An unusual payment of *₹{amount:,.2f}* to *{recipient_name}* was initiated "
                 f"and differs significantly from your usual activity.\n\n"
                 f"Did you initiate this payment?\n\n"
-                f"Reply YES to confirm.\n"
-                f"Reply NO to cancel."
+                f"Reply *YES* to confirm.\n"
+                f"Reply *NO* to cancel."
             )
 
             if cls.is_live_configured():
@@ -279,7 +276,6 @@ class TwilioEscalationService:
                         "note": f"Simulated delivery (Twilio error: {str(e)})."
                     }
 
-            # Simulated WhatsApp
             return {
                 "status": "delivered",
                 "mode": "simulation",
@@ -293,24 +289,25 @@ class TwilioEscalationService:
 
         # 2. AUTOMATED VOICE CALL
         elif channel.lower() == "voice":
-            action_attr = f" action='{settings.PUBLIC_WEBHOOK_URL.rstrip('/')}/api/v1/escalation/voice-webhook?transaction_id={transaction_id}'" if settings.PUBLIC_WEBHOOK_URL else ""
+            action_attr = f' action="{settings.PUBLIC_WEBHOOK_URL.rstrip("/")}/api/v1/escalation/voice-webhook?transaction_id={transaction_id}" method="POST"' if settings.PUBLIC_WEBHOOK_URL else ""
             twiml_content = (
-                f"<Response>"
-                f"<Pause length='1'/>"
-                f"<Say voice='alice' language='en-IN'>"
-                f"This is a Paytm IntentGuard security verification. "
-                f"A payment of rupees {int(amount):,} to {recipient_name} requires verification. "
-                f"Did you initiate this payment? "
-                f"Please answer YES or NO."
-                f"</Say>"
-                f"<Gather input='speech dtmf' timeout='6' speechTimeout='auto'{action_attr} hints='yes, no, block, freeze, cancel, authorize, one, two, 1, 2' language='en-IN'>"
-                f"<Say voice='alice' language='en-IN'>Please answer YES or NO.</Say>"
-                f"</Gather>"
-                f"<Pause length='1'/>"
-                f"<Say voice='alice' language='en-IN'>We did not receive your confirmation. The payment remains paused. Stay safe with Paytm IntentGuard.</Say>"
-                f"</Response>"
+                f'<?xml version="1.0" encoding="UTF-8"?>\n'
+                f'<Response>\n'
+                f'  <Pause length="1"/>\n'
+                f'  <Say language="en-IN">'
+                f'This is a Paytm IntentGuard security verification. '
+                f'A payment of rupees {int(amount):,} to {safe_recipient} requires verification. '
+                f'Did you initiate this payment? '
+                f'Please say YES to approve, or say NO to cancel. '
+                f'You can also press 1 to cancel, or press 2 to approve.'
+                f'</Say>\n'
+                f'  <Gather input="speech dtmf" timeout="7" speechTimeout="auto"{action_attr} hints="yes, no, cancel, approve, 1, 2" language="en-IN">\n'
+                f'    <Say language="en-IN">Please answer YES or NO, or press 1 to cancel, 2 to approve.</Say>\n'
+                f'  </Gather>\n'
+                f'  <Pause length="1"/>\n'
+                f'  <Say language="en-IN">We did not receive your confirmation. The payment remains paused. Stay safe with Paytm IntentGuard.</Say>\n'
+                f'</Response>'
             )
-
 
             if cls.is_live_configured():
                 try:
@@ -343,7 +340,6 @@ class TwilioEscalationService:
                         "note": f"Simulated call placed (Twilio error: {str(e)})."
                     }
 
-            # Simulated Call
             return {
                 "status": "initiated",
                 "mode": "simulation",
@@ -393,7 +389,6 @@ class TwilioEscalationService:
                         "note": f"Simulated SMS (Twilio error: {str(e)})."
                     }
 
-            # Simulated SMS
             return {
                 "status": "delivered",
                 "mode": "simulation",
@@ -404,4 +399,3 @@ class TwilioEscalationService:
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "note": f"Simulated SMS alert sent to {target_phone}."
             }
-
