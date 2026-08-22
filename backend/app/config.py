@@ -1,8 +1,13 @@
-"""
+﻿"""
 Application Configuration for IntentGuard
 """
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+def _get_default_db_url() -> str:
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return "sqlite:////tmp/intentguard.db"
+    return "sqlite:///./intentguard.db"
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -15,7 +20,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Paytm IntentGuard Concept Prototype"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = True
-    DATABASE_URL: str = "sqlite:///./intentguard.db"
+    DATABASE_URL: str = _get_default_db_url()
     SIMULATION_DISCLAIMER: str = (
         "Simulated hackathon experience. No real payments, UPI PINs, OTPs, or bank credentials are used."
     )
@@ -51,6 +56,3 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
 settings = Settings()
-
-
-

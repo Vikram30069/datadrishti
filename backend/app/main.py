@@ -1,4 +1,4 @@
-"""
+﻿"""
 Paytm IntentGuard Concept Prototype - Backend Application
 FastAPI application entry point with CORS, auto-seed lifecycle, and OpenAPI docs.
 """
@@ -40,6 +40,24 @@ def on_startup():
         ProfileService.seed_default_personas(db)
     finally:
         db.close()
+
+@app.get("/")
+def root():
+    return {
+        "project": settings.PROJECT_NAME,
+        "status": "online",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": f"{settings.API_V1_PREFIX}/health"
+    }
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "project": settings.PROJECT_NAME,
+        "version": "1.0.0"
+    }
 
 app.include_router(router, prefix=settings.API_V1_PREFIX)
 
