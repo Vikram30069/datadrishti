@@ -8,8 +8,9 @@ import json
 import uuid
 import datetime
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
+
 from sqlalchemy.orm import Session
 
 from backend.app.config import settings
@@ -473,41 +474,65 @@ def complete_verified_transaction(payload: EscalationCompleteSchema):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/escalation/voice-webhook")
-def twilio_voice_webhook(
-    SpeechResult: Optional[str] = Query(None),
-    Digits: Optional[str] = Query(None),
-    transaction_id: Optional[str] = Query("TXN_DEMO_D")
+async def twilio_voice_webhook(
+    request: Request,
+    transaction_id: Optional[str] = Query(None)
 ):
     """
     Twilio Voice Gather Webhook. Receives transcribed speech or keypress digits from the phone call
     and returns appropriate TwiML while updating authoritative state machine.
     """
     from fastapi.responses import Response
+    
+    # Twilio sends form data via POST
+    form_data = {}
+    try:
+        form = await request.form()
+        form_data = dict(form)
+    except Exception:
+        pass
+
+    speech_result = form_data.get("SpeechResult") or request.query_params.get("SpeechResult") or ""
+    digits = form_data.get("Digits") or request.query_params.get("Digits") or ""
+    txn_id = transaction_id or form_data.get("transaction_id") or request.query_params.get("transaction_id") or "TXN_DEMO_D"
+
     result = TwilioEscalationService.process_voice_response(
-        speech_result=SpeechResult,
-        digits=Digits,
-        transaction_id=transaction_id or "TXN_DEMO_D"
+        speech_result=speech_result,
+        digits=digits,
+        transaction_id=txn_id
     )
     return Response(content=result["twiml"], media_type="application/xml")
 
 @router.post("/escalation/whatsapp-webhook")
-def twilio_whatsapp_webhook(
-    Body: Optional[str] = Query(""),
-    From: Optional[str] = Query(""),
-    transaction_id: Optional[str] = Query("TXN_DEMO_D")
+async def twilio_whatsapp_webhook(
+    request: Request,
+    transaction_id: Optional[str] = Query(None)
 ):
     """
     Twilio WhatsApp Incoming Message Webhook.
     Parses 'YES' / 'NO' and updates authoritative state machine.
     """
     from fastapi.responses import Response
+
+    form_data = {}
+    try:
+        form = await request.form()
+        form_data = dict(form)
+    except Exception:
+        pass
+
+    body = form_data.get("Body") or request.query_params.get("Body") or ""
+    from_phone = form_data.get("From") or request.query_params.get("From") or ""
+    txn_id = transaction_id or form_data.get("transaction_id") or request.query_params.get("transaction_id") or "TXN_DEMO_D"
+
     result = TwilioEscalationService.process_whatsapp_response(
-        body=Body or "",
-        from_phone=From or "",
-        transaction_id=transaction_id or "TXN_DEMO_D"
+        body=body,
+        from_phone=from_phone,
+        transaction_id=txn_id
     )
     twiml_msg = f"<Response><Message>{result['reply_message']}</Message></Response>"
     return Response(content=twiml_msg, media_type="application/xml")
+
 
 
 
