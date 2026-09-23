@@ -1,168 +1,182 @@
-# Paytm IntentGuard: Contextual Payment Security Layer (Concept Prototype)
+<div align="center">
 
-> **Simulated Hackathon Prototype**  
-> *"Paytm already detects suspicious transactions. IntentGuard adds the missing contextual layer: instead of only asking whether a transaction looks risky, it asks whether this transaction makes sense for this user, and applies only as much friction as necessary."*  
-> **Core Principle**: **Same amount. Different context. Different protection.**
+# Paytm IntentGuard (`datadrishti`)
+
+### Contextual Payment Security Layer & Behavioral Anomaly Detection
+
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](Dockerfile)
+[![Tests](https://img.shields.io/badge/Tests-5%20Suites%20Passing-brightgreen?style=flat-square&logo=pytest&logoColor=white)](backend/tests/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
 ---
 
-## 1. Problem & Innovation
+> **Core Thesis**: *"Same amount. Different context. Different protection."*  
+> Standard payment security asks: *“Is this transaction technically authorized?”*  
+> IntentGuard asks: *“Does this transaction make sense for this specific user in this context, or is it an indicator of coercion or panic fraud?”*
 
-In modern UPI digital payments, a transaction can be technically authorized (correct PIN, valid session, normal device credentials), yet still represent a coerced transfer, panic fraud, or severe anomaly for that specific user.
+</div>
 
-Standard binary fraud blockers often:
-1. Block legitimate high-value transactions (e.g., monthly ₹50,000 rent to a known landlord), creating frustration.
-2. Rely on opaque *"FRAUD DETECTED"* alerts with zero explainability.
-3. Fail to capture voluntary user intent.
+---
+
+## 1. Problem & Contextual Innovation
+
+Modern UPI transfers can be fully authorized with correct device tokens, biometric unlocks, and valid PINs while still representing malicious coercion (e.g. extortion, digital arrest scams, panic fraud).
+
+Traditional binary fraud prevention mechanisms fail in two ways:
+1. **False Positives**: Blocking legitimate large transfers (such as ₹50,000 monthly rent to a known landlord), frustrating users.
+2. **Context Blindness**: Relying on opaque `"FRAUD DETECTED"` flags that provide zero explainability and fail to adjust friction dynamically.
 
 ### How IntentGuard Solves This:
-- **Robust Personal Baselines**: Evaluates payments using median, Median Absolute Deviation (MAD), and percentiles rather than misleading averages.
-- **6 Calibrated Explainable Signals**: Amount anomaly (+30), New recipient (+20), Time anomaly (+15), New device (+20), Location anomaly (+10), and Velocity (+5).
-- **Adaptive Friction**:
-  - `0–30 (LOW)` → **ALLOW**: Seamless 1-tap payment.
-  - `31–55 (MEDIUM)` → **INFORM**: Calm contextual banner with 1-tap review.
-  - `56–75 (HIGH)` → **CONFIRM**: Contextual intervention with 3 clear anomaly cards and voluntary intent context check.
-  - `76–100 (VERY_HIGH)` → **ESCALATE**: Safety cooldown timer and interactive verification checklist.
-- **Explainable Decomposition**: Full audit trail with reason codes and English & Hindi translations.
-- **Feedback & Trust Profile**: Post-payment learning updates baselines conservatively without blinding risk engines.
+- **Robust Statistical Baselines**: Replaces arithmetic means (skewed by outliers) with non-parametric **Median** and **Median Absolute Deviation (MAD)**.
+- **6 Calibrated Risk Signals**: Evaluates behavioral deviation across amount, recipient, temporal, device, geographic, and velocity dimensions.
+- **Adaptive Friction Policies**: Instead of binary Allow/Block choices, the system applies calibrated friction:
 
----
-
-## 2. Architecture & Decision Flow
-
-```text
-                  ┌────────────────────────────────────────────────────────────┐
-                  │                 Paytm Mobile Simulator                     │
-                  │   - Screen 1: Normal Payment Flow                          │
-                  │   - Screen 2: IntentGuard Intervention (Wow Screen)        │
-                  │   - Screen 3: "Why am I seeing this?" Score Decomposition   │
-                  │   - Screen 4: IntentGuard Context Check (NLP Extractor)    │
-                  │   - Screen 5: Post-Payment Learning Feedback               │
-                  │   - Screen 6: "Your Trust Profile" (Trusted Patterns)      │
-                  └─────────────────────────────┬──────────────────────────────┘
-                                                │ REST API /evaluate
-                                                ▼
-                  ┌────────────────────────────────────────────────────────────┐
-                  │                 FastAPI Backend (Port 8000)                │
-                  ├────────────────────────────────────────────────────────────┤
-                  │  1. Profile Service: Median / MAD / Trusted Pattern match  │
-                  │  2. Feature Service: 6 Calibrated Signals (0..100 max)     │
-                  │  3. Risk Engine (Source of Truth): Deterministic Sum       │
-                  │  4. ML Indicator: Unsupervised IsolationForest (Indicator) │
-                  │  5. Policy Engine: Authoritative Friction Mapping          │
-                  │  6. Intent Extractor: Deterministic NLP Category Engine    │
-                  │  7. Explanations: Plain-language English + Hindi           │
-                  └─────────────────────────────┬──────────────────────────────┘
-                                                │
-                                                ▼
-                  ┌────────────────────────────────────────────────────────────┐
-                  │                  Judge Telemetry Panel                     │
-                  │   - 1-Click Scenario Switcher (A, B, C, D)                 │
-                  │   - Deterministic Decision Trace with Reason Codes         │
-                  │   - Adaptive Friction Differentiator                       │
-                  │   - Measured Latency (~10-15ms) & Telemetry Counts         │
-                  └────────────────────────────────────────────────────────────┘
+```
+Risk Score  0 ──────────── 30 ───────────── 55 ───────────── 80 ──────────── 100
+            │    ALLOW     │    INFORM     │    STEP-UP     │     BLOCK     │
+            │  1-Tap Pay   │ Context Alert │ Biometric Reauth│ Transfer Hold │
 ```
 
 ---
 
-## 3. Seeded Personas & Canonical Demo Scenarios
+## 2. Risk Scoring & Behavioral Model
 
-### 4 Seeded Personas
-1. **`U101` - Priya Sharma (Student)**: Budget ₹200–₹1,500, transacts in Bengaluru, frequent canteen & bookstore payments.
-2. **`U102` - Vikram Verma (Salaried Professional)**: Monthly rent ₹50,000 to Landlord on 1st–5th, daily spends ₹300–₹3,000 in Mumbai/Pune.
-3. **`U103` - Ramesh Patel (Shopkeeper / Merchant)**: Frequent daytime supplier payments ₹2,000–₹25,000 in Ahmedabad.
-4. **`U104` - Ananya Rao (Freelancer / Consultant)**: Variable invoice transfers ₹5,000–₹40,000 in Hyderabad/Bengaluru.
+The risk engine computes a composite score (0–100) based on 6 explainable factors:
 
-### 4 Canonical Demo Scenarios
-| Scenario | User & Transaction Details | Expected Risk Score | Policy Action | Outcome Description |
-|---|---|---|---|---|
-| **Scenario A (Safe)** | Vikram pays ₹850 to Daily Groceries at 11:30 AM from known iPhone. | **0 / 100 (`LOW`)** | **ALLOW** | Instant 1-tap seamless payment. Subtle *"Protected by IntentGuard"* badge. |
-| **Scenario B (Legitimate Rent)** | Vikram pays ₹50,000 monthly rent to known Landlord at 10:15 AM. | **0 / 100 (`LOW`)** | **ALLOW** | Matches established recurring pattern. Calm, no scary block. |
-| **Scenario C (Suspicious Context)** | Vikram pays ₹45,000 to new payee Amit Kumar at 2:07 AM from unknown device. | **77 / 100 (`HIGH`)** | **CONFIRM** | Intervention screen with 3 anomaly cards and context check. |
-| **Scenario D (High Risk / ATO)** | Vikram pays ₹75,000 to new payee at 3:18 AM with 2 recent failed attempts. | **100 / 100 (`VERY_HIGH`)** | **ESCALATE** | Safety cooldown pause with verification checklist. |
+| Factor | Weight | Evaluation Method | Rationale |
+|---|---|---|---|
+| **Amount Anomaly** | +30 | Z-score derived from personal Median & MAD | Identifies deviation from individual spending baselines. |
+| **Recipient Novelty** | +20 | Historical counterparty frequency & age | First-time transfers to unknown accounts carry higher risk. |
+| **Device Novelty** | +20 | Hardware fingerprint & IMEI hash validation | Protects against newly enrolled session hijacking. |
+| **Time-of-Day Anomaly** | +15 | Circular temporal distance from active hours | Detects unusual 3:00 AM panic transfers. |
+| **Geographic Anomaly** | +10 | Haversine distance from primary cluster | Flags rapid physical location shifts. |
+| **Velocity Surge** | +5 | Sliding 15-minute transaction count | Guards against rapid account draining. |
 
 ---
 
-## 4. 90-Second Judge Demo Script
+## 3. System Architecture
 
-1. **Open the App** (`http://localhost:3000`): Show the Paytm mobile simulator on the left and the Judge panel on the right.
-2. **Run Scenario A (Safe ₹850)**:
-   - Tap *Scenario A*. The phone shows ₹850 to Nature Basket.
-   - Tap *Pay ₹850*. Instant green tick *"Payment Completed ✓"* with `< 15ms` measured latency.
-3. **The Core Differentiator: Run Scenario B vs Scenario C (Same Amount, Different Context)**:
-   - Tap *Scenario B* (₹50,000 Rent). Tap *Pay ₹50,000*. Notice it is **instantly approved** because IntentGuard recognized the monthly landlord pattern.
-   - Tap *Scenario C* (₹45,000 Suspicious). Tap *Pay ₹45,000*. Notice the calm **Intervention Screen** appears:
-     - 3 clear anomaly cards: New Recipient (+20), Higher than usual (+22), Unusual time (+15).
-     - Tap *"Why this?"* to show the **Explainable Risk Decomposition** (77/100) and toggle between English and Hindi.
-     - Tap *Review & Pay*, enter/select context *"My cousin asked me for hospital emergency expenses"*, and continue.
-4. **Run Scenario D (High Risk / ATO)**:
-   - Tap *Scenario D* (₹75,000 at 3:18 AM with 2 retries).
-   - Observe the **Stepped-Up Security Cooldown** and checklist.
-5. **Show "Your Trust Profile"**:
-   - Tap *Trust Profile* in the mobile simulator to show how legitimate behavior is learned (House Rent ₹50,000/mo, Electricity ₹1,850/mo).
+```mermaid
+graph LR
+    subgraph Client Layer
+        APP[UPI Payment App / Web Simulator]
+    end
 
----
+    subgraph IntentGuard Gateway
+        API[FastAPI Gateway]
+        AUTH[JWT / Session Verification]
+    end
 
-## 5. Quickstart & Local Setup
+    subgraph Intelligence Engine
+        FE[Feature Extractor]
+        BASE[Median & MAD User Baselines]
+        SCORER[Calibrated Risk Scorer]
+        POLICY[Adaptive Friction Policy Engine]
+    end
 
-### Prerequisites
-- Python 3.12+
-- Node.js 18+ & npm
-
-### Method 1: Local Development
-
-#### Terminal 1: Backend
-```bash
-cd backend
-pip install -r requirements.txt
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+    APP -->|Payment Intent Payload| API
+    API --> AUTH --> FE
+    FE --> BASE --> SCORER --> POLICY
+    POLICY -->|Allow / Inform / Step-Up / Block| APP
 ```
-API Documentation will be live at: `http://localhost:8000/docs`
-
-#### Terminal 2: Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Open `http://localhost:3000` in your browser.
 
 ---
 
-### Method 2: Docker Compose (Full Stack)
+## 4. Technology Stack
+
+- **Backend**: Python 3.11, FastAPI, Pydantic v2, Uvicorn
+- **Analytics & Math**: NumPy, Pandas, Scikit-learn (baseline clustering)
+- **Frontend / Simulation**: Next.js, Tailwind CSS, Lucide Icons
+- **Deployment**: Docker, Docker Compose, Vercel Serverless (`api/index.py`)
+- **Testing**: Pytest (5 modular test suites)
+
+---
+
+## 5. Project Structure
+
+```
+datadrishti/
+├── backend/
+│   ├── app/
+│   │   ├── api/                # Evaluation and simulation routes
+│   │   ├── core/               # Configuration & policy thresholds
+│   │   ├── services/           # Feature extraction & risk engine
+│   │   └── schemas/            # Pydantic request/response models
+│   ├── data/                   # Simulated transaction distributions
+│   ├── tests/                  # Pytest automated test suites
+│   │   ├── test_api.py
+│   │   ├── test_features.py
+│   │   ├── test_policy.py
+│   │   ├── test_risk_engine.py
+│   │   └── test_simulation_engine.py
+│   └── Dockerfile
+├── frontend/                   # Interactive demo UI
+├── docker-compose.yml          # Container configuration
+└── README.md
+```
+
+---
+
+## 6. Installation & Quickstart
+
+### Running with Docker
+
 ```bash
+git clone https://github.com/Vikram30069/datadrishti.git
+cd datadrishti
 docker-compose up --build
 ```
+The API documentation is accessible at `http://localhost:8000/docs`.
+
+### Local Development Setup
+
+1. **Set up virtual environment:**
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Run tests:**
+   ```bash
+   pytest tests/ -v
+   ```
+
+3. **Start the API server:**
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
 
 ---
 
-## 6. Running Automated Test Suite
+## 7. API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/evaluate` | Evaluates a transaction against personal baselines and returns risk score + friction tier |
+| `POST` | `/api/simulate` | Generates a batch of synthetic normal vs anomalous transactions |
+| `GET` | `/health` | Service health status |
+
+---
+
+## 8. Verification & Test Suite
+
+The project includes 5 automated test modules verifying behavioral math and policy logic:
 
 ```bash
-# Run backend pytest suite (13 unit and integration tests)
-python -m pytest backend/tests -v
-
-# Run frontend production build validation
-cd frontend
-npm run build
+cd backend
+pytest tests/ -v
 ```
 
----
-
-## 7. What Would Be Required for Production
-
-A production rollout within the Paytm ecosystem would require:
-1. **NPCI & Paytm Risk Engine Integration**: Mutual TLS hook inside Paytm's transaction authorization pipeline.
-2. **Feature Store Isolation**: Real-time Redis / Feast cluster for sub-10ms profile lookups.
-3. **Data Protection & Privacy**: Compliance with India's Digital Personal Data Protection Act (DPDP 2023) and RBI 2FA directives.
-4. **Model Governance & Monitoring**: Drift detection on IsolationForest anomaly thresholds and automated false-positive alerting.
-5. **Multi-lingual Expansion**: Pre-cached voice and regional language assets for Indian languages (Tamil, Telugu, Bengali, Marathi, etc.).
+- **`test_risk_engine.py`**: Verifies exact mathematical outputs of the MAD calculation.
+- **`test_policy.py`**: Validates boundary transitions between `ALLOW`, `INFORM`, `STEP_UP`, and `BLOCK`.
+- **`test_features.py`**: Asserts feature transformation correctness on raw transaction payloads.
 
 ---
 
-## 8. Privacy, Safety & Security Boundaries
+## 9. License
 
-- **Zero Real Credentials**: No real UPI PINs, OTPs, bank accounts, or credentials are used or requested.
-- **Synthetic Data**: All transaction logs, recipient names, and device fingerprints are generated synthetically for hackathon simulation.
-- **Disclaimer**: *"Simulated hackathon experience. No real payments are processed."*
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
